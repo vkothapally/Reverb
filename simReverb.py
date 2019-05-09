@@ -131,9 +131,10 @@ class simRIR:
     
     def __init__(self, nrooms, nmics, maxdistance, nT60s, audiofile):
         self.rooms = self.build(nrooms)
-        self.source(self, audiofile)
-        self.microphones(self, nmics, maxdistance)
-        self.reverbtime(self, nT60s)
+        self.source(audiofile)
+        self.microphones(nmics, maxdistance)
+        self.reverbtime(nT60s)
+        
          
     def build(self, nrooms):
         length = list(np.round(np.geomspace(10.0, 25.0, 20)))
@@ -141,14 +142,14 @@ class simRIR:
         height = np.round([3.0,6.0])
         rooms = list(set(list(itertools.product(length, width, height))))
         rooms = sorted(rooms, key=lambda tup: tup[0])
-        self.rooms = [list(rooms[int(k)]) for k in np.linspace(1,len(rooms)-1, nrooms)]
+        rooms = [list(rooms[int(k)]) for k in np.linspace(1,len(rooms)-1, nrooms)]
         print('*** Done Adding Room Information')
-        
+        return rooms
     
-    def source(self, audiofile, location):
+    def source(self, audiofile):
         self.nsrc = 1 
         self.signal, self.fs = sf.read(audiofile)
-        self.source_location = location
+        self.source_location = np.array([1., 1., 0.5])
         print('*** Done Addding Source Location')
         
     def microphones(self, nmics, maxdistance):
@@ -167,7 +168,7 @@ class simRIR:
         
     
     def simulate(self):
-        orV_rcv = np.matlib.repmat(np.array([0,1,0]), self.nmics, 1) # Vectors pointing in the same direction than the receivers
+        orV_rcv = np.matlib.repmat(np.array([0,0]), self.nmics, 1) # Vectors pointing in the same direction than the receivers
         abs_weights = [0.9]*5+[0.5] # Absortion coefficient ratios of the walls
         att_diff = 15.0	# Attenuation when start using the diffuse reverberation model [dB]
         att_max = 60.0 # Attenuation at the end of the simulation [dB]
@@ -175,26 +176,28 @@ class simRIR:
         RIRs = {}
         room_count = 0
         for room_sz in self.rooms:
+            room_count = room_count + 1
+            RIRs['Room'+str(room_count)] = {}
+            T60_count = 0
             for T60 in self.T60s:
+                T60_count = T60_count + 1
+                RIRs['Room'+str(room_count)]['T60_'+str(T60_count)] = {}
+                mic_count = 0
                 for pos_rcv in self.microphone_location:
-                    RIRs['Room'+str(room_count)] = {}
+                    mic_count = mic_count+1
                     beta = gpuRIR.beta_SabineEstimation(room_sz, T60, abs_weights=abs_weights) # Reflection coefficients
                     Tdiff= gpuRIR.att2t_SabineEstimator(att_diff, T60) # Time to start the diffuse reverberation model [s]
                     Tmax = gpuRIR.att2t_SabineEstimator(att_max, T60)	 # Time to stop the simulation [s]
                     nb_img = gpuRIR.t2n( Tdiff, room_sz )	# Number of image sources in each dimension
-                    RIRs['Room'+str(room_count)]['h'] = gpuRIR.simulateRIR(room_sz, beta, self.source_location, pos_rcv, nb_img, Tmax, self.fs, Tdiff=Tdiff, orV_rcv=orV_rcv, mic_pattern=self.mic_pattern)
-                    room_count = room_count+1
+                    RIRs['Room'+str(room_count)]['T60_'+str(T60_count)]['mic'+str(mic_count)] = gpuRIR.simulateRIR(room_sz, beta, self.source_location, pos_rcv, nb_img, Tmax, self.fs, Tdiff=Tdiff, orV_rcv=orV_rcv, mic_pattern=self.mic_pattern)
         return RIRs
 
 
 
 
-RiRs = simRIR(nrooms=4, nmics=1, maxdistance=3, nT60s=2, audiofile='Test.wav')
+Rooms = simRIR(nrooms=4, nmics=1, maxdistance=3, nT60s=2, audiofile='Test.wav')
 
-
-
-
-
+temp = Rooms.simulate()
 
 
 
