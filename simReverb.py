@@ -25,7 +25,7 @@ class simRIR:
         self.fs = 16000
         self.reverbtime(nT60s)
         self.microphones(narrays, maxdistance)
-        #self.getRIRs_test()
+        self.getRIRs_test()
         
          
     def build(self, nrooms):
