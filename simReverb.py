@@ -6,7 +6,7 @@ Created on Wed May  8 12:32:34 2019
 @author: vinaykothapally
 """
 
-import os
+import os, math
 import gpuRIR
 import itertools
 import numpy as np
@@ -25,7 +25,7 @@ class simRIR:
         self.fs = 16000
         self.reverbtime(nT60s)
         self.microphones(narrays, maxdistance)
-        self.getRIRs_test()
+        #self.getRIRs_test()
         
          
     def build(self, nrooms):
@@ -47,7 +47,7 @@ class simRIR:
             rooms[k]['Size'] = (rooms[k]['Area (Sq.ft)']<1000)*'Small' + \
                                (rooms[k]['Area (Sq.ft)']>1000 and rooms[k]['Area (Sq.ft)']<2000)*'Medium' + \
                                (rooms[k]['Area (Sq.ft)']>2000)*'Large'
-            rooms[k]['Diagonal'] = np.arctan((rooms[k]['Dimensions'][1])/(rooms[k]['Dimensions'][0]))
+            rooms[k]['Diagonal'] = math.atan(rooms[k]['Dimensions'][1]/rooms[k]['Dimensions'][0])
             rooms[k]['Source'] = self.source(rooms[k]['Diagonal'])
             rooms[k]['MaxDistance'] = np.round(np.sqrt((rooms_options[k][0]-rooms[k]['Source'][0][0])**2 + (rooms_options[k][1]-rooms[k]['Source'][0][1])**2)-6, decimals=2) 
             
@@ -87,13 +87,20 @@ class simRIR:
         print('*** Done Adding Mictrophones Locations')
         
     def array_points(self, room, center, d, theta):
-        array = {}; a = 2e-2;
-        array['Mic_0'] = list(np.round(np.array(center) + np.array([d*np.cos(theta)+a*np.sin(theta),d*np.sin(theta)-a*np.cos(theta),0]), decimals=2))
+        array = {}; a = 1; b = 2e-2;
+        array['Mic_0'] = [(a+d)*math.cos(theta)+b*math.sin(theta), (a+d)*math.sin(theta)-b*math.cos(theta), 0.5]
+        array['Mic_1'] = [(a+d)*math.cos(theta), (a+d)*math.sin(theta), 0.5]
+        array['Mic_2'] = [(a+d)*math.cos(theta)-b*math.sin(theta), (a+d)*math.sin(theta)+b*math.cos(theta), 0.5]
+        array['Mic_3'] = [(a+d-b)*math.cos(theta), (a+d-b)*math.sin(theta), 0.5]
+        array['Mic_4'] = [(a+d+b)*math.cos(theta), (a+d+b)*math.sin(theta), 0.5]
+        
+        '''
+        array['Mic_0'] = list([d*np.cos(theta)+a*np.sin(theta),d*np.sin(theta)-a*np.cos(theta),0]), decimals=2))
         array['Mic_1'] = list(np.round(np.array(center) + np.array([d*np.cos(theta),d*np.sin(theta),0]), decimals=2))
         array['Mic_2'] = list(np.round(np.array(center) + np.array([d*np.cos(theta)-a*np.sin(theta),d*np.sin(theta)+a*np.cos(theta),0]), decimals=2))
         array['Mic_3'] = list(np.round(np.array(center) + np.array([(d-a)*np.cos(theta),(d-a)*np.sin(theta),0]), decimals=2))
         array['Mic_4'] = list(np.round(np.array(center) + np.array([(d+a)*np.cos(theta),(d+a)*np.sin(theta),0]), decimals=2))
-        
+        '''
         for mic in array:
             if any(np.array(array[mic]) >= np.asarray(room)):
                 print('Microphone outside room! Check Logic--- Room: '+mic)
